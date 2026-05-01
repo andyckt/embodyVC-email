@@ -1,0 +1,14 @@
+{
+  "name": "embodyvc-email",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "send:test": "node ./send-test-email.mjs",
+    "email:get": "node ./get-email.mjs"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "resend": "^6.1.0"
+  }
+}
