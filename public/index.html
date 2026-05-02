@@ -138,11 +138,26 @@
     <div class="wrap">
       <h1>Send email</h1>
       <p class="sub">
-        From address uses <code>RESEND_FROM</code> in your <code>.env</code>. Everything below is
-        only for this send.
+        From address is set on the server (<code>RESEND_FROM</code>). Everything below is only for
+        this send.
       </p>
 
       <form id="form" novalidate>
+        <div class="field">
+          <label for="secret">Send password</label>
+          <input
+            id="secret"
+            name="secret"
+            type="password"
+            autocomplete="current-password"
+            placeholder="Only if the server sets GUI_SEND_SECRET"
+          />
+          <p class="hint">
+            On Vercel, set <code>GUI_SEND_SECRET</code> in project env vars so this page is not a
+            public open relay. Leave blank if your server does not use it.
+          </p>
+        </div>
+
         <div class="field">
           <label for="to">To</label>
           <input
@@ -211,6 +226,7 @@
         hideBanner();
 
         const payload = {
+          secret: document.getElementById('secret').value,
           to: document.getElementById('to').value,
           subject: document.getElementById('subject').value,
           html: document.getElementById('html').value,

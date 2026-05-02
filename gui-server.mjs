@@ -3,11 +3,10 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Resend } from 'resend';
+import { sendGuiEmail } from './lib/email-send.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const publicDir = path.join(__dirname, 'public');
-const indexPath = path.join(publicDir, 'index.html');
+const indexPath = path.join(__dirname, 'public', 'index.html');
 
 const apiKey = process.env.RESEND_API_KEY;
 const from = process.env.RESEND_FROM;
@@ -20,16 +19,6 @@ if (!apiKey) {
 if (!from) {
   console.error('Missing RESEND_FROM in .env');
   process.exit(1);
-}
-
-const resend = new Resend(apiKey);
-
-function parseRecipients(value) {
-  if (!value || typeof value !== 'string') return [];
-  return value
-    .split(/[,;\n]+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
 }
 
 function readBody(req) {
@@ -74,7 +63,7 @@ const server = http.createServer(async (req, res) => {
       const html = fs.readFileSync(indexPath, 'utf8');
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(html);
-    } catch (e) {
+    } catch {
       res.writeHead(500, { 'Content-Type': 'text/plain' });
       res.end('Missing public/index.html');
     }
@@ -84,35 +73,12 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url.pathname === '/api/send') {
     try {
       const body = await readBody(req);
-      const to = parseRecipients(body.to);
-      const subject = typeof body.subject === 'string' ? body.subject.trim() : '';
-      const html = typeof body.html === 'string' ? body.html : '';
-      const text =
-        typeof body.text === 'string' && body.text.trim() !== '' ? body.text : undefined;
-
-      if (to.length === 0) {
-        sendJson(res, 400, { error: 'Add at least one recipient email.' });
+      const outcome = await sendGuiEmail(body);
+      if (!outcome.ok) {
+        sendJson(res, outcome.status, { error: outcome.error });
         return;
       }
-      if (!subject) {
-        sendJson(res, 400, { error: 'Subject is required.' });
-        return;
-      }
-      if (!html.trim() && !text) {
-        sendJson(res, 400, { error: 'Add HTML body and/or plain text body.' });
-        return;
-      }
-
-      const payload = {
-        from,
-        to,
-        subject,
-      };
-      if (html.trim()) payload.html = html;
-      if (text) payload.text = text;
-
-      const result = await resend.emails.send(payload);
-      sendJson(res, 200, { result });
+      sendJson(res, 200, { result: outcome.result });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Send failed';
       sendJson(res, 500, { error: message });
