@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Send email — embodyvc</title>
+    <style>
+      :root {
+        --bg: #0f1419;
+        --surface: #1a222c;
+        --border: #2d3a47;
+        --text: #e7edf3;
+        --muted: #8b9aab;
+        --accent: #5b9fd4;
+        --danger: #e06c75;
+        --ok: #7fd99a;
+        --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,
+          sans-serif;
+        --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: var(--font);
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.5;
+      }
+      .wrap {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 2rem 1.25rem 3rem;
+      }
+      h1 {
+        font-size: 1.35rem;
+        font-weight: 600;
+        margin: 0 0 0.25rem;
+        letter-spacing: -0.02em;
+      }
+      .sub {
+        color: var(--muted);
+        font-size: 0.9rem;
+        margin: 0 0 1.75rem;
+      }
+      label {
+        display: block;
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: var(--muted);
+        margin-bottom: 0.35rem;
+      }
+      .field {
+        margin-bottom: 1.1rem;
+      }
+      input[type='text'],
+      textarea {
+        width: 100%;
+        padding: 0.65rem 0.75rem;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface);
+        color: var(--text);
+        font-family: var(--font);
+        font-size: 0.95rem;
+      }
+      textarea {
+        min-height: 220px;
+        resize: vertical;
+        font-family: var(--mono);
+        font-size: 0.85rem;
+        line-height: 1.45;
+      }
+      .hint {
+        font-size: 0.75rem;
+        color: var(--muted);
+        margin-top: 0.35rem;
+      }
+      button {
+        appearance: none;
+        border: none;
+        border-radius: 8px;
+        padding: 0.7rem 1.25rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        font-family: var(--font);
+        background: var(--accent);
+        color: #0a0e12;
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      button:hover:not(:disabled) {
+        filter: brightness(1.06);
+      }
+      .actions {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-top: 0.25rem;
+      }
+      .banner {
+        margin-top: 1.25rem;
+        padding: 0.85rem 1rem;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .banner.ok {
+        background: rgba(127, 217, 154, 0.12);
+        border: 1px solid rgba(127, 217, 154, 0.35);
+        color: var(--ok);
+      }
+      .banner.err {
+        background: rgba(224, 108, 117, 0.12);
+        border: 1px solid rgba(224, 108, 117, 0.35);
+        color: var(--danger);
+      }
+      .banner.hide {
+        display: none;
+      }
+      code {
+        font-family: var(--mono);
+        font-size: 0.82em;
+        background: var(--surface);
+        padding: 0.12em 0.35em;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Send email</h1>
+      <p class="sub">
+        From address uses <code>RESEND_FROM</code> in your <code>.env</code>. Everything below is
+        only for this send.
+      </p>
+
+      <form id="form" novalidate>
+        <div class="field">
+          <label for="to">To</label>
+          <input
+            id="to"
+            name="to"
+            type="text"
+            autocomplete="email"
+            placeholder="you@example.com, teammate@example.com"
+            required
+          />
+          <p class="hint">One or more addresses, separated by commas.</p>
+        </div>
+
+        <div class="field">
+          <label for="subject">Subject</label>
+          <input id="subject" name="subject" type="text" placeholder="Your subject line" required />
+        </div>
+
+        <div class="field">
+          <label for="html">HTML body</label>
+          <textarea
+            id="html"
+            name="html"
+            placeholder="<p>Hello…</p>"
+            spellcheck="false"
+          ></textarea>
+          <p class="hint">Optional if you fill plain text below. HTML is sent as-is.</p>
+        </div>
+
+        <div class="field">
+          <label for="text">Plain text body (optional)</label>
+          <textarea
+            id="text"
+            name="text"
+            placeholder="Plain text version for mail clients that prefer it"
+            spellcheck="true"
+          ></textarea>
+        </div>
+
+        <div class="actions">
+          <button type="submit" id="send">Send</button>
+        </div>
+      </form>
+
+      <div id="banner" class="banner hide" role="status"></div>
+    </div>
+
+    <script>
+      const form = document.getElementById('form');
+      const banner = document.getElementById('banner');
+      const btn = document.getElementById('send');
+
+      function showBanner(kind, text) {
+        banner.classList.remove('hide', 'ok', 'err');
+        banner.classList.add(kind === 'ok' ? 'ok' : 'err');
+        banner.textContent = text;
+      }
+
+      function hideBanner() {
+        banner.classList.add('hide');
+        banner.textContent = '';
+      }
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        hideBanner();
+
+        const payload = {
+          to: document.getElementById('to').value,
+          subject: document.getElementById('subject').value,
+          html: document.getElementById('html').value,
+          text: document.getElementById('text').value,
+        };
+
+        btn.disabled = true;
+        try {
+          const res = await fetch('/api/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            showBanner('err', data.error || res.statusText || 'Request failed');
+            return;
+          }
+          const id = data.result?.data?.id;
+          showBanner(
+            'ok',
+            id
+              ? 'Sent. Resend id: ' + id
+              : 'Sent.\n' + JSON.stringify(data.result, null, 2)
+          );
+        } catch (err) {
+          showBanner('err', err instanceof Error ? err.message : 'Network error');
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>
